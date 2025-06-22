@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.CI_ADMIN_TOKEN }}  # PAT com permissões
 
       - name: Setup Git
         run: |
@@ -23,14 +25,10 @@ jobs:
         run: |
           OLD_VERSION=$(cat version.txt)
           echo "Versão atual: $OLD_VERSION"
-
-          # Separar em MAJOR.MINOR.PATCH
           IFS='.' read -r MAJOR MINOR PATCH <<< "$OLD_VERSION"
           PATCH=$((PATCH + 1))
           NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-
           echo "$NEW_VERSION" > version.txt
-          echo "Nova versão: $NEW_VERSION"
           echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
 
       - name: Commit updated version.txt
@@ -38,27 +36,29 @@ jobs:
           git add version.txt
           git commit -m "chore: bump version to v${{ steps.bump_version.outputs.version }}"
           git push origin developer
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_ADMIN_TOKEN }}  # PAT no push
 
       - name: Create release branch
         run: |
           git checkout -b release/v${{ steps.bump_version.outputs.version }}
           git push origin release/v${{ steps.bump_version.outputs.version }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.CI_ADMIN_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.bump_version.outputs.version }}
           name: Release v${{ steps.bump_version.outputs.version }}
-          target_commitish: release/v${{ steps.bump_version.outputs.version }}
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.CI_ADMIN_TOKEN }}  # PAT aqui também
 
       - name: Create Pull Request to main
         uses: peter-evans/create-pull-request@v5
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.CI_ADMIN_TOKEN }}  # Substitui o GITHUB_TOKEN
           source: release/v${{ steps.bump_version.outputs.version }}
           target: main
           title: "Release v${{ steps.bump_version.outputs.version }}"
           body: "Pull request automático gerado a partir da branch developer."
-          delete-branch: false
