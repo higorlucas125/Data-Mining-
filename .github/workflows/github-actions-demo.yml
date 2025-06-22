@@ -1,0 +1,48 @@
+name: Release Automation
+
+on:
+  push:
+    branches:
+      - developer
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Get current version (example)
+        id: get_version
+        run: |
+          # Aqui você pode colocar um script para aumentar versão automaticamente
+          echo "RELEASE_TAG=release-v1.0" >> $GITHUB_ENV
+
+      - name: Create release branch
+        run: |
+          git checkout -b $RELEASE_TAG
+          git push origin $RELEASE_TAG
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: Release ${{ env.RELEASE_TAG }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Merge release branch into main
+        run: |
+          git checkout main
+          git pull origin main
+          git merge $RELEASE_TAG
+          git push origin main
+
